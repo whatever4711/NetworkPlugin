@@ -2,6 +2,7 @@
 
 PLUGIN_NAME=localhost:5000/kathara/katharanp
 PLUGIN_CONTAINER=katharanp
+ARCHITECTURES=amd64 arm64
 
 .PHONY: all test clean gobuild image plugin
 
@@ -51,3 +52,17 @@ registry:
 
 clean_registry:
 	docker-compose -f ./test_registry/simple.yml down -v
+
+manifest:
+#	@wget -O docker https://6582-88013053-gh.circle-artifacts.com/1/work/build/docker-linux-amd64
+#	@chmod +x docker
+	#@./docker login -u $(DOCKER_USER) -p $(DOCKER_PASS)
+	docker manifest create --insecure --amend $(PLUGIN_NAME):latest $(foreach arch,$(ARCHITECTURES), $(PLUGIN_NAME):$(arch))
+	$(foreach arch,$(ARCHITECTURES), docker manifest annotate $(PLUGIN_NAME):latest $(PLUGIN_NAME):$(arch) --os linux $(strip $(call convert_variants,$(arch)));)
+	docker manifest push $(PLUGIN_NAME):latest
+	#@rm -f docker
+	#@./docker logout
+
+define convert_variants
+	$(shell echo $(1) | sed -e "s|amd64|--arch amd64|g" -e "s|arm32|--arch arm --variant v7|g" -e "s|arm64|--arch arm64 --variant v8|g")
+endef
