@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-PLUGIN_NAME=kathara/katharanp
+PLUGIN_NAME=localhost:5000/kathara/katharanp
 PLUGIN_CONTAINER=katharanp
 
 .PHONY: all test clean gobuild image plugin
