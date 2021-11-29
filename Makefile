@@ -44,3 +44,9 @@ push_%: plugin
 buildx_create_environment:
 	docker buildx create --name kat-np-builder --use
 	docker buildx inspect --bootstrap
+
+registry:
+	docker-compose -f ./test_registry/simple.yml up -d
+
+clean_registry:
+	docker-compose -f ./test_registry/simple.yml down -v
