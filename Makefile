@@ -24,7 +24,7 @@ test:
 	cat ./plugin-src/config.json | python3 -m json.tool
 
 clean_%:
-	docker plugin rm -f ${PLUGIN_NAME}:$*-${PLUGIN_VERSION} || true
+	docker plugin rm -f ${REGISTRY}${PLUGIN_NAME}:$*-${PLUGIN_VERSION} || true
 	docker rm -f ${PLUGIN_CONTAINER}_rootfs || true
 	docker buildx rm kat-np-builder || true
 	rm -rf ./img-src/katharanp
