@@ -2,7 +2,15 @@
 PLUGIN_CONTAINER=katharanp
 PLUGIN_NAME=kathara/$(PLUGIN_CONTAINER)
 PLUGIN_VERSION=latest
+# Leave REGISTRY empty to use the docker default
+#REGISTRY=
+REGISTRY=localhost:5000/
 ARCHITECTURES=amd64 386 arm64v8 armv7 armv6 ppc64le s390x
+
+MANIFEST_INSECURE=
+ifdef REGISTRY
+	MANIFEST_INSECURE=--insecure
+endif
 
 .PHONY: all test clean gobuild image plugin
 
@@ -36,20 +44,35 @@ image_%: gobuild_docker_% buildx_create_environment
 	docker rmi ${PLUGIN_CONTAINER}:rootfs
 
 plugin_%: image
-	docker plugin create ${PLUGIN_NAME}:$*-${PLUGIN_VERSION} ./plugin-src/
+	docker plugin create ${REGISTRY}${PLUGIN_NAME}:$*-${PLUGIN_VERSION} ./plugin-src/
 	rm -rf ./plugin-src/rootfs
 
 push_%: plugin
-	docker plugin push ${PLUGIN_NAME}:$*-${PLUGIN_VERSION}
+	docker plugin push ${REGISTRY}${PLUGIN_NAME}:$*-${PLUGIN_VERSION}
 
 buildx_create_environment:
 	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 	docker buildx create --name kat-np-builder --use
 	docker buildx inspect --bootstrap
 
+registry:
+	$(MAKE) -C ./test_registry
+
+manifest: clean_manifest
+	docker manifest create $(MANIFEST_INSECURE) --amend $(REGISTRY)$(PLUGIN_NAME):$(PLUGIN_VERSION) $(foreach arch,$(ARCHITECTURES), $(REGISTRY)$(PLUGIN_NAME):$(arch)-$(PLUGIN_VERSION))
+	$(foreach arch,$(ARCHITECTURES), docker manifest annotate $(REGISTRY)$(PLUGIN_NAME):$(PLUGIN_VERSION) $(REGISTRY)$(PLUGIN_NAME):$(arch)-$(PLUGIN_VERSION) --os linux $(strip $(call convert_variants,$(arch)));)
+	docker manifest push $(REGISTRY)$(PLUGIN_NAME):latest
+
+clean_manifest:
+	docker manifest rm $(REGISTRY)$(PLUGIN_NAME):latest || true
+
+
 define convert_archs
 	$(shell echo $(1) | sed -e "s|\(arm[64]*\).*\(v[6-8]\)|\1/\2|g")
 endef
 define goarch
 	$(shell echo $(1) | sed -e "s|\(arm[64]*\)v.*|\1|g" )
+endef
+define convert_variants
+	$(shell echo $(1) | sed -e "s|\(.*\)|--arch \1|g; s|\(arm[64]*\).*\(v[6-8]\)|\1 --variant \2|g")
 endef
